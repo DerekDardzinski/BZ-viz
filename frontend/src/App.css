@@ -1,0 +1,9 @@
+.App {
+  height: calc(var(--vh, 1vh) * 100);
+  width: 100vw;
+  padding: 0;
+  margin: 0;
+  font-family: "Montserrat", serif;
+  box-sizing: border-box;
+  background-color: lightgray;
+}
