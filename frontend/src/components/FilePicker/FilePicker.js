@@ -1,9 +1,10 @@
-import React, { useRef, Component, useState } from 'react'
+import React, { useRef, Component, useState, useContext } from 'react'
 import axios from 'axios'
+import StructureContext from '../StructureContext/StructureContext'
 
-function FilePicker() {
+function FilePicker(props) {
 
-  const [file, setFile] = useState('')   
+  const [file, setFile] = useState('')  
 
   function handleFile(e) {
     console.log(e.target.files)
@@ -11,10 +12,11 @@ function FilePicker() {
   }
 
   function handleUpload() {
+    props.setState('')
     const formData = new FormData()
     formData.append('file', file)
     axios.post("http://127.0.0.1:5000/file", formData).then((res) => {
-      console.log(res)
+      props.setState(res.data)
     })
   }
 
@@ -22,9 +24,15 @@ function FilePicker() {
       <div className="container">
         <form>
           <label>Select File</label>
-          <input type="file" name="file" onChange={handleFile} />
+          <input 
+            type="file"
+            name="file"
+            onChange={handleFile}
+          />
         </form>
-        <button onClick={handleUpload}>Upload POSCAR</button>
+        <button onClick={handleUpload}>
+          Upload POSCAR
+        </button>
       </div>
     )
 }

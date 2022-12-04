@@ -20,7 +20,7 @@ function Label(props) {
 
     // console.log(props.children, position, length)
     const ref = useRef()
-    console.log(props.children, ref)
+    // console.log(props.children, ref)
     useFrame(({ camera }) => {
         // console.log(camera.quaternion)
         // let new_quaterion = camera.quaternion.multiply(props.quaternion)

@@ -8,7 +8,7 @@ import numpy as np
 from build_surf import build_surface
 
 
-def get_bulk_bz_coords(struc):
+def get_bulk_bz_coords(struc, return_all=False):
     recip_matrix = struc.lattice.reciprocal_lattice.matrix
     recip_inv_matrix = struc.lattice.reciprocal_lattice.inv_matrix
     bz = struc.lattice.get_brillouin_zone()
@@ -34,6 +34,7 @@ def get_bulk_bz_coords(struc):
     }
 
     all_high_symm_points = {}
+    init_high_symm_points = {}
 
     for k in kpoint_dict:
         high_symm_points = []
@@ -49,17 +50,28 @@ def get_bulk_bz_coords(struc):
             axis=0
         )
         all_high_symm_points[k] = unique_high_symm_points
+        init_high_symm_points[k] = [np.array(kpoint_dict[k])]
 
-    kpoint_labels = []
-    kpoint_values = []
+    all_kpoint_labels = []
+    all_kpoint_values = []
     for k, v in all_high_symm_points.items():
-        kpoint_labels.extend([k] * len(v))
-        kpoint_values.append(v)
+        all_kpoint_labels.extend([k] * len(v))
+        all_kpoint_values.append(v)
 
-    return kpoint_labels, np.vstack(kpoint_values)
+    all_kpoint_values = np.vstack(all_kpoint_values)
+
+    init_kpoint_labels = []
+    init_kpoint_values = []
+    for k, v in init_high_symm_points.items():
+        init_kpoint_labels.extend([k] * len(v))
+        init_kpoint_values.append(v)
+
+    init_kpoint_values = np.vstack(init_kpoint_values)
+
+    return all_kpoint_labels, all_kpoint_values, init_kpoint_labels, init_kpoint_values
 
 
-def get_surf_bz_coords(bulk, index):
+def get_surf_bz_coords(bulk, index, return_all=True):
     struc = build_surface(bulk, index)
     recip_matrix = struc.lattice.reciprocal_lattice.matrix
     recip_inv_matrix = struc.lattice.reciprocal_lattice.inv_matrix
@@ -85,10 +97,11 @@ def get_surf_bz_coords(bulk, index):
 
     kp = KPathSeek(struc)
     kpoint_dict = {
-        k: v for k, v in kp.kpath['kpoints'].items() if '_' not in k and v[-1] == 0
+        k: v for k, v in kp.kpath['kpoints'].items() if '_' not in k and v[-1] == 0.0
     }
 
     all_high_symm_points = {}
+    init_high_symm_points = {}
 
     for k in kpoint_dict:
         high_symm_points = []
@@ -104,14 +117,25 @@ def get_surf_bz_coords(bulk, index):
             axis=0
         )
         all_high_symm_points[k] = unique_high_symm_points
+        init_high_symm_points[k] = [np.array(kpoint_dict[k])]
 
-    kpoint_labels = []
-    kpoint_values = []
+    all_kpoint_labels = []
+    all_kpoint_values = []
     for k, v in all_high_symm_points.items():
-        kpoint_labels.extend([k] * len(v))
-        kpoint_values.append(v)
+        all_kpoint_labels.extend([k] * len(v))
+        all_kpoint_values.append(v)
 
-    return kpoint_labels, np.vstack(kpoint_values)
+    all_kpoint_values = np.vstack(all_kpoint_values)
+
+    init_kpoint_labels = []
+    init_kpoint_values = []
+    for k, v in init_high_symm_points.items():
+        init_kpoint_labels.extend([k] * len(v))
+        init_kpoint_values.append(v)
+
+    init_kpoint_values = np.vstack(init_kpoint_values)
+
+    return all_kpoint_labels, all_kpoint_values, init_kpoint_labels, init_kpoint_values
 
 
 if __name__ == "__main__":

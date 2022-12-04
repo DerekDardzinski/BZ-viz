@@ -100,7 +100,7 @@ def get_distorted_hex(center, r, z_height=0, extra_shift=np.zeros(2), theta=0, f
     return np.ravel(three_coords).tolist(), np.ravel(vertex_inds).tolist(), np.ravel(normals).tolist()
 
 
-def get_bz_data(struc, frac_shifts, vec1, vec2, issurf=False, miller_index=[1, 1, 1]):
+def get_bz_data(struc, frac_shifts, issurf=False, miller_index=[1, 1, 1]):
     # matrix = struc.lattice.matrix
     if issurf:
         bulk_struc = copy.deepcopy(struc)
@@ -115,35 +115,63 @@ def get_bz_data(struc, frac_shifts, vec1, vec2, issurf=False, miller_index=[1, 1
         reciprocal_vector_lengths[:, None]
     shifts = frac_shifts.dot(recip_lattice.matrix)
 
-    rotation_vector_1 = vec1.dot(recip_lattice.matrix)
-    rotation_vector_1 /= np.linalg.norm(rotation_vector_1)
-    rotation_vector_2 = vec2
+    # rotation_vector_1 = vec1.dot(recip_lattice.matrix)
+    # rotation_vector_1 /= np.linalg.norm(rotation_vector_1)
+    # rotation_vector_2 = vec2
 
     if issurf:
-        tmp_kpoint_labels, kpoint_frac_coords = get_surf_bz_coords(
+        (
+            tmp_all_kpoint_labels,
+            all_kpoint_frac_coords,
+            tmp_init_kpoint_labels,
+            init_kpoint_frac_coords
+        ) = get_surf_bz_coords(
             bulk=bulk_struc,
             index=miller_index,
         )
     else:
-        tmp_kpoint_labels, kpoint_frac_coords = get_bulk_bz_coords(
+        (
+            tmp_all_kpoint_labels,
+            all_kpoint_frac_coords,
+            tmp_init_kpoint_labels,
+            init_kpoint_frac_coords
+        ) = get_bulk_bz_coords(
             struc=struc
         )
 
-    kpoint_labels = []
-    for l in tmp_kpoint_labels:
+    all_kpoint_labels = []
+    for l in tmp_all_kpoint_labels:
         if 'GAMMA' in l:
-            kpoint_labels.append('G' + "\n\n\n")
+            all_kpoint_labels.append('G' + "\n\n\n")
         else:
             if issurf:
-                kpoint_labels.append(l + "\n\n\n")
+                all_kpoint_labels.append(l + "\n\n\n")
             else:
-                kpoint_labels.append(l)
+                all_kpoint_labels.append(l)
+
+    init_kpoint_labels = []
+    for l in tmp_init_kpoint_labels:
+        if 'GAMMA' in l:
+            init_kpoint_labels.append('G' + "\n\n\n")
+        else:
+            if issurf:
+                init_kpoint_labels.append(l + "\n\n\n")
+            else:
+                init_kpoint_labels.append(l)
 
     if issurf:
+        c_vec = normalized_reciprocal_vectors[-1]
+        test_vec1 = c_vec + np.linalg.norm(recip_matrix.sum(axis=0))
+        test_vec2 = c_vec - np.linalg.norm(recip_matrix.sum(axis=0))
+
+        if np.linalg.norm(test_vec1) < np.linalg.norm(test_vec2):
+            c_vec *= -1
+
         reciprocal_vector_lengths = reciprocal_vector_lengths[:2]
         normalized_reciprocal_vectors = normalized_reciprocal_vectors[:2]
 
-    kpoint_cart_coords = kpoint_frac_coords.dot(recip_lattice.matrix)
+    all_kpoint_cart_coords = all_kpoint_frac_coords.dot(recip_lattice.matrix)
+    init_kpoint_cart_coords = init_kpoint_frac_coords.dot(recip_lattice.matrix)
 
     vertices_inds = []
     plane_normals = []
@@ -181,12 +209,18 @@ def get_bz_data(struc, frac_shifts, vec1, vec2, issurf=False, miller_index=[1, 1
         "planeNormals": plane_normals,
         "reciprocalVectors": normalized_reciprocal_vectors.tolist(),
         "reciprocalVectorLengths": reciprocal_vector_lengths.tolist(),
-        "kpointFracCoords": kpoint_frac_coords.tolist(),
-        "kpointCartCoords": kpoint_cart_coords.tolist(),
-        "kpointLabels": kpoint_labels,
-        "rotationVector1": rotation_vector_1.tolist(),
-        "rotationVector2": rotation_vector_2.tolist()
+        "allKpointFracCoords": all_kpoint_frac_coords.tolist(),
+        "allKpointCartCoords": all_kpoint_cart_coords.tolist(),
+        "allKpointLabels": all_kpoint_labels,
+        "initKpointFracCoords": init_kpoint_frac_coords.tolist(),
+        "initKpointCartCoords": init_kpoint_cart_coords.tolist(),
+        "initKpointLabels": init_kpoint_labels,
+        # "rotationVector1": rotation_vector_1.tolist(),
+        # "rotationVector2": rotation_vector_2.tolist()
     }
+
+    if issurf:
+        return_dict["surfaceNormal"] = c_vec.tolist()
 
     return return_dict
 
@@ -240,12 +274,20 @@ CORS(app, supports_credentials=False)
 
 @app.route('/bulkData')
 def get_bulk_data():
-    return get_bz_data(bulk, frac_shifts=bulk_frac_shifts, vec1=bulk_vec1, vec2=bulk_vec2)
+    return get_bz_data(
+        bulk,
+        frac_shifts=bulk_frac_shifts,
+    )
 
 
 @app.route('/surfData')
 def get_surf_data():
-    return get_bz_data(bulk, frac_shifts=surf_frac_shifts, vec1=surf_vec1, vec2=surf_vec2, issurf=True, miller_index=[1, 1, 0])
+    return get_bz_data(
+        bulk,
+        frac_shifts=surf_frac_shifts,
+        issurf=True,
+        miller_index=[1, 1, 0]
+    )
 
 
 @app.route('/file', methods=['POST'])
@@ -258,31 +300,23 @@ def upload_file():
     data_bulk = get_bz_data(
         struc,
         frac_shifts=bulk_frac_shifts,
-        vec1=np.array([0, 1, 0]),
-        vec2=np.array([0, 1, 0]),
         issurf=False,
     )
     data_001 = get_bz_data(
         struc,
         frac_shifts=bulk_frac_shifts,
-        vec1=np.array([0, 1, 0]),
-        vec2=np.array([0, 1, 0]),
         issurf=True,
         miller_index=[0, 0, 1],
     )
     data_110 = get_bz_data(
         struc,
         frac_shifts=bulk_frac_shifts,
-        vec1=np.array([0, 1, 0]),
-        vec2=np.array([0, 1, 0]),
         issurf=True,
         miller_index=[1, 1, 0],
     )
     data_111 = get_bz_data(
         struc,
         frac_shifts=bulk_frac_shifts,
-        vec1=np.array([0, 1, 0]),
-        vec2=np.array([0, 1, 0]),
         issurf=True,
         miller_index=[1, 1, 1],
     )
